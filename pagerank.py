@@ -104,9 +104,11 @@ class WebGraph():
         else:
             v = torch.zeros(n)
             # (if url satisfies query) true = 1, false = 0
-            # 5 lines or so
-            # FIXME: your code goes here
-        
+            for i in range(n):
+                url = self._index_to_url(i)
+                if url_satisfies_query(url, query) == True:
+                    v[i] = 1
+
         v_sum = torch.sum(v)
         assert(v_sum>0)
         v /= v_sum
@@ -135,22 +137,29 @@ class WebGraph():
             x0 /= torch.norm(x0)
 
             # main loop
-            # FIXME: your code goes here
-
-            # sparse matrix multiplication function - sparse and dense => be careful with transposes
-            # less than 10 lines long!
-            x = x0.squeeze()
-
             # create "a" vector
-            row_sums = torch.sparse.sum(self.P.t(), 0).dense # vector where each component of vector is sum of rows
+            x = x0
+            a = torch.zeros(n)
+            row_sums = torch.sparse.sum(self.P.t(), 0) # vector where each component of vector is sum of rows
             for i in range(n):
                 if row_sums[i] == 0:
                     a[i] = 1
                 else:
                     a[i] = 0
             
+            for k in range(0, max_iterations):
+                x_first = x
+                
+                alphax = alpha * x_first.t()
+                first = torch.sparse.mm(self.P.t(), alphax.t()).t()
+                second = (alphax * a + (1-alpha))*v.t()
+                
+                x = (first + second).t()
 
-            return x
+                if torch.norm(x - x_first) < epsilon:
+                    break
+
+            return x.squeeze()
 
 
     def search(self, pi, query='', max_results=10):
